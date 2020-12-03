@@ -10,23 +10,23 @@ from .utils import bytes_to_str
 
 class RedisMixin(object):
     """Mixin class to implement reading urls from a redis queue."""
-    redis_key = None
+    redis_key = None # 这个属性用来从redis拿请求url，生成requests，从而满足 start_requests 方法的需要。
     redis_batch_size = None
     redis_encoding = None
 
     # Redis client placeholder.
     server = None
 
-    def start_requests(self):
+    def start_requests(self): 
         """Returns a batch of start requests from redis."""
-        return self.next_requests()
+        return self.next_requests() # 第100行左右，有 next_requests 方法体
 
-    def setup_redis(self, crawler=None):
+    def setup_redis(self, crawler=None): # 这个方法什么时候调用呢？在170行和200行， 两个子类Spider方法里调用。 from_crawler，构造一个spider实例的时候调用，所以是延迟调用的。
         """Setup redis connection and idle signal.
 
         This should be called after the spider has set its crawler object.
         """
-        if self.server is not None:
+        if self.server is not None: # 如果这个类级别的属性已经有了，就不用再执行了。
             return
 
         if crawler is None:
@@ -38,14 +38,14 @@ class RedisMixin(object):
         if crawler is None:
             raise ValueError("crawler is required")
 
-        settings = crawler.settings
+        settings = crawler.settings # 拿到全局配置
 
         if self.redis_key is None:
             self.redis_key = settings.get(
-                'REDIS_START_URLS_KEY', defaults.START_URLS_KEY,
+                'REDIS_START_URLS_KEY', defaults.START_URLS_KEY, # 备选默认配置
             )
 
-        self.redis_key = self.redis_key % {'name': self.name}
+        self.redis_key = self.redis_key % {'name': self.name} # 替换占位符name 为 spider_name
 
         if not self.redis_key.strip():
             raise ValueError("redis_key must not be empty")
@@ -62,7 +62,7 @@ class RedisMixin(object):
         except (TypeError, ValueError):
             raise ValueError("redis_batch_size must be an integer")
 
-        if self.redis_encoding is None:
+        if self.redis_encoding is None: # 默认编码
             self.redis_encoding = settings.get('REDIS_ENCODING', defaults.REDIS_ENCODING)
 
         self.logger.info("Reading start URLs from redis key '%(redis_key)s' "
@@ -80,6 +80,7 @@ class RedisMixin(object):
 
         # The idle signal is called when the spider has no requests left,
         # that's when we will schedule new requests from redis queue
+        # spider任务下载完成了，就去拿取数据，这个非常有意思，这个信号量
         crawler.signals.connect(self.spider_idle, signal=signals.spider_idle)
 
     def pop_list_queue(self, redis_key, batch_size):
@@ -102,7 +103,7 @@ class RedisMixin(object):
         found = 0
         datas = self.fetch_data(self.redis_key, self.redis_batch_size)
         for data in datas:
-            reqs = self.make_request_from_data(data)
+            reqs = self.make_request_from_data(data) # 122行，见方法体
             if isinstance(reqs, Iterable):
                 for req in reqs:
                     yield req
@@ -130,19 +131,19 @@ class RedisMixin(object):
             Message from redis.
 
         """
-        url = bytes_to_str(data, self.redis_encoding)
-        return self.make_requests_from_url(url)
+        url = bytes_to_str(data, self.redis_encoding) # 解码
+        return self.make_requests_from_url(url) # scrapy 的内置方法
 
     def schedule_next_requests(self):
         """Schedules a request if available"""
         # TODO: While there is capacity, schedule a batch of redis requests.
-        for req in self.next_requests():
+        for req in self.next_requests(): # zx: 100L 左右方法体，然后开始爬取方法
             self.crawler.engine.crawl(req, spider=self)
 
     def spider_idle(self):
         """Schedules a request if available, otherwise waits."""
         # XXX: Handle a sentinel to close the spider.
-        self.schedule_next_requests()
+        self.schedule_next_requests() # zx:下一个请求，就是上面那个方法
         raise DontCloseSpider
 
 
