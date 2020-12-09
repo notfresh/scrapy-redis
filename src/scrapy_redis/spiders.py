@@ -19,7 +19,7 @@ class RedisMixin(object):
 
     def start_requests(self): 
         """Returns a batch of start requests from redis."""
-        return self.next_requests() # 第100行左右，有 next_requests 方法体
+        return self.next_requests() # 第100行左右，有 next_requests 方法体， 109行yield request, 后面发生了什么?
 
     def setup_redis(self, crawler=None): # 这个方法什么时候调用呢？在170行和200行， 两个子类Spider方法里调用。 from_crawler，构造一个spider实例的时候调用，所以是延迟调用的。
         """Setup redis connection and idle signal.
@@ -106,7 +106,7 @@ class RedisMixin(object):
             reqs = self.make_request_from_data(data) # 122行，见方法体
             if isinstance(reqs, Iterable):
                 for req in reqs:
-                    yield req
+                    yield req # 这里这个yiled request，让我感觉很好奇，到底请求去哪里了呢？ 109行需要好好调研一下。
                     # XXX: should be here?
                     found += 1
                     self.logger.info(f'start req url:{req.url}')
