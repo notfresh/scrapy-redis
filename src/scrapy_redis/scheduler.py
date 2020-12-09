@@ -60,7 +60,6 @@ class Scheduler(object):
             Importable path to the dupefilter class.
         idle_before_close : int
             Timeout before giving up.
-
         """
         if idle_before_close < 0:
             raise TypeError("idle_before_close cannot be negative")
@@ -68,7 +67,7 @@ class Scheduler(object):
         self.server = server
         self.persist = persist
         self.flush_on_start = flush_on_start
-        self.queue_key = queue_key
+        self.queue_key = queue_key  # 这个又在第130行, 构建 self.queque 里用到过.
         self.queue_cls = queue_cls
         self.dupefilter_cls = dupefilter_cls
         self.dupefilter_key = dupefilter_key
@@ -129,7 +128,7 @@ class Scheduler(object):
                 spider=spider,
                 key=self.queue_key % {'spider': spider.name},
                 serializer=self.serializer,
-            )
+            ) # scheduler需要管理一个队列来维持进队,出队, 这个queue就是 enqueue_request用的,在152行可以看到
         except TypeError as e:
             raise ValueError("Failed to instantiate queue class '%s': %s",
                              self.queue_cls, e)
